@@ -74,7 +74,7 @@ async def main(url):
     # page.mouse
     
     data = await page.content()
-    soup = BeautifulSoup(data, "html5lib")
+    soup = BeautifulSoup(data, 'html.parser')
     totalpages = int(int(soup.select('div.pageBar > span.TotalRecord')[0].text.split(" ")[1])/30)+1
     counter = 0
 
@@ -88,7 +88,7 @@ async def main(url):
     for i in range(totalpages):
         start = time.time()
         data = await page.content()
-        soup = BeautifulSoup(data, "html5lib")
+        soup = BeautifulSoup(data, 'html.parser')
         links = soup.select("div#content > ul.listInfo > li.pull-left.infoContent")
         headers = {
         # 'user-agent': ua.random
@@ -110,7 +110,7 @@ async def main(url):
                     requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
                     # allow_redirects 拒絕重新導向
                     link_data = requests.get(url=link, headers=headers, verify = False, allow_redirects=False, timeout = (10,15))
-                    link_soup = BeautifulSoup(link_data.text, 'html5lib')
+                    link_soup = BeautifulSoup(link_data.text, 'html.parser')
                     # print(link)
                     ## 抓取title 跳出index error
                     title = ""
@@ -124,21 +124,23 @@ async def main(url):
                         print(e, " , Error in Title，link : ", link)
                         title = ""
                         print(link_soup)
+
                     userInfo = link_soup.find("div", "userInfo")
                     owner = ""
                     # 有些userinfo 會有複數 div
                     try:
                         owner = userInfo.select_one("div.infoOne > div.avatarRight > div").text.strip()
-                        # 問題 : 分隔符號有分全形跟半形
-                        Delimiter_brackets = ""
-                        if "（" in owner:
-                            Delimiter_brackets = "（"
-                        elif "(" in owner:
-                            Delimiter_brackets = "("
-                        #### 出租者
-                        landlord = owner.split(Delimiter_brackets)[0]
-                        #### 出租者身分
-                        identity = Delimiter_brackets + owner.split(Delimiter_brackets)[1]
+                        if owner != "":
+                            # 問題 : 分隔符號有分全形跟半形
+                            Delimiter_brackets = ""
+                            if "（" in owner:
+                                Delimiter_brackets = "（"
+                            elif "(" in owner:
+                                Delimiter_brackets = "("
+                            #### 出租者
+                            landlord = owner.split(Delimiter_brackets)[0]
+                            #### 出租者身分
+                            identity = Delimiter_brackets + owner.split(Delimiter_brackets)[1]
                     except AttributeError as e:
                         print(e, " , Error in Owner，link : ", link)
                         landlord = ""
@@ -199,58 +201,62 @@ async def main(url):
                             print(e, ", link : ", link, ", 重試第", times2, "次")
                             print(tel_src)
                     if times2 == 3:
-                        print("http:" , tel_src, ".jpg, 連線五次皆失敗!故跳過 !")
+                        print("http:" , tel_src, ".jpg, 連線", times, "次皆失敗!故跳過 !")
                         tel_num = ""
 
-                    price = ""
                     #### 租金
+                    price = ""
                     detailInfo = link_soup.find("div", "detailInfo")
-                    price = detailInfo.select("div.price > i")[0].text
+                    if detailInfo != "":
+                        price = detailInfo.select("div.price > i")[0].text
 
+                    #### 型態housetype，現況situation，坪數pings，樓層floor，格局pattern
                     housetype = ""
                     situation = ""
                     pings = ""
                     floor = ""
                     pattern = ""
-                    #### 型態housetype，現況situation，坪數pings，樓層floor，格局pattern，
                     attrs = detailInfo.select("ul.attr > li")
-                    for attr in attrs:
-                        attr_text = attr.text.strip().replace(" ", "")
-                        temp_word = ""
-                        if "型態" in attr_text:
-                            housetype = attr_text.split(":")[1].replace(u"\xa0", u"")
-                        elif "現況" in attr_text:
-                            situation = attr_text.split(":")[1].replace(u"\xa0", u"")
-                        elif "坪數" in attr_text:
-                            pings = attr_text.split(":")[1].replace(u"\xa0", u"")
-                        elif "樓層" in attr_text:
-                            floor = ""
-                            floor = attr_text.split(":")[1].replace(u"\xa0", u"")
-                        elif "格局" in attr_text:
-                            pattern = attr_text.split(":")[1].replace(u"\xa0", u"")
+                    if attrs != "":
+                        for attr in attrs:
+                            attr_text = attr.text.strip().replace(" ", "")
+                            temp_word = ""
+                            if "型態" in attr_text:
+                                housetype = attr_text.split(":")[1].replace(u"\xa0", u"")
+                            elif "現況" in attr_text:
+                                situation = attr_text.split(":")[1].replace(u"\xa0", u"")
+                            elif "坪數" in attr_text:
+                                pings = attr_text.split(":")[1].replace(u"\xa0", u"")
+                            elif "樓層" in attr_text:
+                                floor = ""
+                                floor = attr_text.split(":")[1].replace(u"\xa0", u"")
+                            elif "格局" in attr_text:
+                                pattern = attr_text.split(":")[1].replace(u"\xa0", u"")
 
+                    #### 入住者需求 : 性別要求genderrequire，押金deposit，最短租期
                     genderrequire = ""
                     deposit = ""
                     minlease = ""
-                    #### 入住者需求 : 性別要求genderrequire，押金deposit，最短租期
                     ResidentNeeds = link_soup.select("ul.labelList.labelList-1 > li")
-                    for rns in ResidentNeeds:
-                        temp_word = ""
-                        rns_text = rns.text.strip().replace(" ", "")
-                        if "性別要求" in rns_text:
-                            genderrequire = rns_text.split("：")[1].replace(u"\xa0", u"")
-                        elif "押金" in rns_text:
-                            deposit = rns_text.split("：")[1].replace(u"\xa0", u"")
-                        elif "最短租期" in rns_text:
-                            minlease = rns_text.split("：")[1].replace(u"\xa0", u"")
+                    if ResidentNeeds != "":
+                        for rns in ResidentNeeds:
+                            temp_word = ""
+                            rns_text = rns.text.strip().replace(" ", "")
+                            if "性別要求" in rns_text:
+                                genderrequire = rns_text.split("：")[1].replace(u"\xa0", u"")
+                            elif "押金" in rns_text:
+                                deposit = rns_text.split("：")[1].replace(u"\xa0", u"")
+                            elif "最短租期" in rns_text:
+                                minlease = rns_text.split("：")[1].replace(u"\xa0", u"")
+                    
                     
                     # 關閉請求，釋放內存
                     link_data.close()
                     # await asyncio.sleep(int(random.uniform(1, 2)))
                     await asyncio.sleep(1)
 
-                    # minlease 有值即表示此link爬取成功，故跳出迴圈進行下一筆link的爬取
-                    if minlease != "":
+                    # title 或 minlease 或 price 有值即表示此link爬取成功，故跳出迴圈進行下一筆link的爬取
+                    if title != "" or minlease != "" or price != "":
                         break
                 except requests.exceptions.ConnectTimeout:
                     times += 1
@@ -342,5 +348,5 @@ async def main(url):
 
 
 if __name__ == '__main__':
-    url = "https://rent.591.com.tw/"
+    url = "https://rent.591.com.tw/?kind=0&region=1"
     asyncio.get_event_loop().run_until_complete(main(url))
